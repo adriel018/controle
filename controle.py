@@ -32,7 +32,7 @@ with st.container(border=True):
 st.number_input('Velocidade do vento:', min_value=0.0, format='%f', step=1.0, key = 'vvent', help='Km/h')
 velocidade_vento_nos = st.session_state.vvent * 0.53996
 
-with st.container():
+with st.container(border=True):
     if velocidade_vento_nos < 21:
         st.markdown(
             f'<h4>Velocidade do vento é de: <span style="color: red;">{velocidade_vento_nos:.2f} nós</span>. É indicado o uso de <span style="color: red;">Barreira Tipo Cerca e Tipo Cortina</span></h4>',
@@ -46,13 +46,42 @@ with st.container():
             f'<h4>Velocidade do vento é de: <span style="color: red;">{velocidade_vento_nos:.2f} nós</span>. Condição desfavorável para o uso de barreiras</h4>',
             unsafe_allow_html=True)
 
-st.number_input('Velocidade da corrente:', min_value=0.0, format='%f', step=1.0, key = 'vcor', help='nós')
 st.number_input('Largura da Foz do Rio:', min_value=0.0, format='%f', step=10.0, key = 'lf', help='m')
+dados = {
+    1: 75,
+    1.2: 60,
+    1.4: 45,
+    1.75: 35,
+    3.7: 15
+}
+
+# Input do usuário
+velocidade = st.number_input('Velocidade da corrente:', min_value=0.0, format='%f', step=0.1, key='vcor', help='nós')
+
+# Comparação com os dados
+def obter_angulo(velocidade):
+    # Encontrar a velocidade mais próxima na tabela
+    velocidades_disponiveis = sorted(dados.keys())
+    for v in velocidades_disponiveis:
+        if velocidade <= v:
+            return dados[v]
+    return "Velocidade fora do intervalo"
+
+# Mostrar o ângulo correspondente
+angulo = obter_angulo(velocidade)
+
+# Exibir o ângulo formatado
+with st.container(border=True):
+    if isinstance(angulo, int):  # Verifica se o valor é um número inteiro
+        st.markdown(f'<h4>Ângulo Correspondente: <span style="color: red;">{angulo:.0f}°</span></h4>',
+                    unsafe_allow_html=True)
+    else:
+        st.markdown(f'<h4>{angulo}</h4>', unsafe_allow_html=True)  # Exibe mensagem para valores fora do intervalo
 
 Bc = 0
 if st.session_state.lf > 0 and st.session_state.vcor >= 0:
     Bc = st.session_state.lf * (st.session_state.vcor + 1.5)
-    with st.container():
+    with st.container(border=True):
         st.markdown(f'<h4>Comprimento das Barreiras: <span style="color: red;">{Bc:.0f} metros</span></h4>',
                     unsafe_allow_html=True)
 else:
@@ -68,7 +97,7 @@ if st.session_state.rb > 0 and calado_barreira > 0 and calado_barreira <= st.ses
     Fc = 26 * As * (st.session_state.vcor ** 2)
     Fv = 26 * Av * ((velocidade_vento_nos / 40) ** 2)
 
-    with st.container():
+    with st.container(border=True):
         st.markdown(f'<h4>Carga Suportada, Força da Correnteza: <span style="color: red;">{Fc:.0f} kgf</span></h4>',
                     unsafe_allow_html=True)
         st.markdown(f'<h4>Carga Suportada, Força da Vento: <span style="color: red;">{Fv:.0f} kgf</span></h4>',
@@ -96,16 +125,16 @@ else:
 st.number_input('Tempo de Mobilização:', min_value=0.0, format='%f', step=1.0, key = 'mobt', help='horas')
 st.number_input('Tempo de Deslocamento:', min_value=0.0, format='%f', step=1.0, key = 'deslt', help='horas')
 st.number_input('Tempo de Instalação:', min_value=0.0, format='%f', step=1.0, key = 'instt', help='horas')
-st.number_input('Tempo Mínimo de Toque de Óleo no Estuário:', min_value=0.0, format='%f', step=1.0, key = 'toqt', help='horas')
+st.number_input('Distância do Derramamento:', min_value=0.0, format='%f', step=10.0, key = 'distd', help='Km')
 st.number_input('Velocidade Média de Deslocamento:', min_value=0.0, format='%f', step=10.0, key = 'vd', help='km/h')
 
-if (st.session_state.mobt >= 0 and st.session_state.deslt >= 0 and st.session_state.instt >= 0 and st.session_state.toqt > 0
-        and st.session_state.vd > 0):
+if (st.session_state.mobt >= 0 and st.session_state.deslt >= 0 and st.session_state.instt >= 0 and st.session_state.vd > 0):
     Tr = st.session_state.mobt + st.session_state.deslt + st.session_state.instt
     D = st.session_state.vd * (Tr - (st.session_state.mobt + st.session_state.instt))
+    toqt = st.session_state.distd / st.session_state.vd
 
     with st.container(border=True):
-        if Tr >= st.session_state.toqt:
+        if Tr <= toqt:
             st.markdown(f'<h4>Tempo de Resposta: <span style="color: red;">{Tr:.0f} horas</span></h4>',
                         unsafe_allow_html=True)
             st.markdown(f'<h4>Distância Entre o Inventário e o Estuário: <span style="color: red;">{D:.0f} metros</span></h4>',
@@ -130,6 +159,7 @@ def gerar_pdf():
     pdf.ln(10)
     pdf.cell(200, 10, txt=f"Calado da Barreira: {calado_barreira:.2f} metros", ln=True)
     pdf.cell(200, 10, txt=f"Velocidade do vento: {velocidade_vento_nos:.2f} nós", ln=True)
+    pdf.cell(200, 10, txt=f"Ângulo Correspondente: {angulo:.0f}°", ln=True)
     pdf.cell(200, 10, txt=f"Comprimento das Barreiras: {Bc:.0f} metros", ln=True)
     pdf.cell(200, 10, txt=f"Carga Suportada, Força da Correnteza: {Fc:.0f} kgf", ln=True)
     pdf.cell(200, 10, txt=f"Carga Suportada, Força da Vento: {Fv:.0f} kgf", ln=True)
@@ -143,7 +173,7 @@ def gerar_pdf():
     return pdf.output(dest='S').encode('latin1')
 
 # Botão de download do PDF
-if st.session_state.lf > 0 and st.session_state.vcor > 0 and st.session_state.rb > 0 and st.session_state.vd > 0 and st.session_state.toqt > 0:
+if st.session_state.lf > 0 and st.session_state.vcor > 0 and st.session_state.rb > 0 and st.session_state.vd > 0:
     pdf_data = gerar_pdf()
     st.download_button(label="Baixar PDF", data=pdf_data, file_name="dimensionamento_barreiras.pdf", mime='application/pdf')
 else:
